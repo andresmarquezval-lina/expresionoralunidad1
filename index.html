@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entraînement Oral - Unité 1</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: transparent; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        function App() {
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [isRecording, setIsRecording] = useState(false);
+            const [recordings, setRecordings] = useState({});
+            const [micError, setMicError] = useState(null);
+            
+            const mediaRecorder = useRef(null);
+            const audioChunks = useRef([]);
+
+            const questions = [
+                {
+                    id: 1,
+                    question: "¿De dónde eres?",
+                    traduction: "D'où es-tu ?",
+                    reponseAttenue: "Soy de [ta ville] / Soy [ta nationalité].",
+                    verbe: "Ser"
+                },
+                {
+                    id: 2,
+                    question: "¿Cuántos años tienes?",
+                    traduction: "Quel âge as-tu ?",
+                    reponseAttenue: "Tengo [ton âge] años.",
+                    verbe: "Tener"
+                },
+                {
+                    id: 3,
+                    question: "¿Cómo te llamas?",
+                    traduction: "Comment t'appelles-tu ?",
+                    reponseAttenue: "Me llamo [ton prénom].",
+                    verbe: "Llamarse"
+                },
+                {
+                    id: 4,
+                    question: "¿Qué tal estás?",
+                    traduction: "Comment vas-tu ?",
+                    reponseAttenue: "Estoy muy bien, gracias.",
+                    verbe: "Estar"
+                },
+                {
+                    id: 5,
+                    question: "¿En qué trabajas?",
+                    traduction: "Dans quoi travailles-tu ?",
+                    reponseAttenue: "Trabajo en [lieu] / Soy [profession].",
+                    verbe: "Trabajar / Ser"
+                }
+            ];
+
+            const currentQ = questions[currentIndex];
+
+            const playQuestionAudio = (text) => {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'es-ES';
+                    utterance.rate = 0.9;
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    alert("La synthèse vocale n'est pas supportée par ce navigateur.");
+                }
+            };
+
+            const startRecording = async () => {
+                setMicError(null);
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder.current = new MediaRecorder(stream);
+                    audioChunks.current = [];
+
+                    mediaRecorder.current.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            audioChunks.current.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.current.onstop = () => {
+                        const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        setRecordings(prev => ({ ...prev, [currentIndex]: audioUrl }));
+                        
+                        // Libérer le micro
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.current.start();
+                    setIsRecording(true);
+                } catch (err) {
+                    console.error("Erreur d'accès au microphone:", err);
+                    setMicError("Impossible d'accéder au micro. Vérifiez les autorisations de votre navigateur ou de Google Sites.");
+                }
+            };
+
+            const stopRecording = () => {
+                if (mediaRecorder.current && isRecording) {
+                    mediaRecorder.current.stop();
+                    setIsRecording(false);
+                }
+            };
+
+            const nextQuestion = () => {
+                if (isRecording) stopRecording();
+                if (currentIndex < questions.length - 1) setCurrentIndex(currentIndex + 1);
+            };
+
+            const prevQuestion = () => {
+                if (isRecording) stopRecording();
+                if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
+            };
+
+            const deleteRecording = () => {
+                const newRecordings = { ...recordings };
+                delete newRecordings[currentIndex];
+                setRecordings(newRecordings);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-2 sm:p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                        
+                        <div className="bg-indigo-600 p-4 sm:p-6 text-white text-center relative">
+                            <div className="absolute top-4 sm:top-6 right-4 sm:right-6 text-indigo-200 text-xs sm:text-sm font-bold bg-indigo-800 px-2 py-1 rounded-full">
+                                {currentIndex + 1} / {questions.length}
+                            </div>
+                            <h1 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">Entraînement Oral</h1>
+                            <p className="text-indigo-200 text-xs sm:text-sm">Unité 1 : Présentez-vous (Tú ➔ Yo)</p>
+                        </div>
+
+                        <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
+                            
+                            <div className="text-center space-y-3 sm:space-y-4">
+                                <div className="inline-block px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2">
+                                    Verbe : {currentQ.verbe}
+                                </div>
+                                <div className="flex items-center justify-center gap-2 sm:gap-3">
+                                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-800">
+                                        {currentQ.question}
+                                    </h2>
+                                    <button 
+                                        onClick={() => playQuestionAudio(currentQ.question)}
+                                        className="p-2 bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 rounded-full transition-colors flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12"
+                                        title="Écouter la question"
+                                    >
+                                        <i className="fas fa-volume-up text-lg sm:text-xl"></i>
+                                    </button>
+                                </div>
+                                <p className="text-sm sm:text-base text-slate-400 italic">{currentQ.traduction}</p>
+                            </div>
+
+                            <hr className="border-slate-100" />
+
+                            <div className="bg-slate-50 rounded-2xl p-4 sm:p-6 border border-slate-100">
+                                <h3 className="text-xs sm:text-sm font-bold text-slate-400 uppercase mb-2 sm:mb-3 text-center">Structure de votre réponse</h3>
+                                <p className="text-lg sm:text-xl text-center font-medium text-indigo-700">
+                                    « {currentQ.reponseAttenue} »
+                                </p>
+                            </div>
+
+                            <div className="space-y-4">
+                                {micError && (
+                                    <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-xs sm:text-sm">
+                                        <i className="fas fa-exclamation-circle text-lg"></i>
+                                        <p>{micError}</p>
+                                    </div>
+                                )}
+
+                                <div className="flex flex-col items-center justify-center gap-4 py-2 sm:py-4">
+                                    
+                                    {!recordings[currentIndex] ? (
+                                        <button
+                                            onClick={isRecording ? stopRecording : startRecording}
+                                            className={`relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full text-white transition-all duration-300 shadow-lg ${
+                                                isRecording 
+                                                    ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                                                    : 'bg-indigo-600 hover:bg-indigo-700 hover:scale-105'
+                                            }`}
+                                        >
+                                            <i className={`fas ${isRecording ? 'fa-square' : 'fa-microphone'} text-2xl sm:text-3xl`}></i>
+                                            
+                                            {isRecording && (
+                                                <span className="absolute -bottom-8 text-red-500 font-bold text-xs sm:text-sm animate-pulse whitespace-nowrap">
+                                                    Enregistrement...
+                                                </span>
+                                            )}
+                                        </button>
+                                    ) : (
+                                        <div className="w-full bg-indigo-50 p-4 rounded-2xl flex flex-col items-center gap-3 sm:gap-4 border border-indigo-100">
+                                            <span className="text-indigo-800 font-bold text-xs sm:text-sm">Votre réponse enregistrée :</span>
+                                            <audio 
+                                                controls 
+                                                src={recordings[currentIndex]} 
+                                                className="w-full max-w-sm h-10 sm:h-12"
+                                            />
+                                            <button 
+                                                onClick={deleteRecording}
+                                                className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 hover:text-red-500 transition-colors mt-1 sm:mt-2"
+                                            >
+                                                <i className="fas fa-sync-alt"></i> Recommencer
+                                            </button>
+                                        </div>
+                                    )}
+                                    
+                                    {!isRecording && !recordings[currentIndex] && (
+                                        <p className="text-xs sm:text-sm text-slate-400 mt-2">
+                                            Cliquez sur le micro pour parler
+                                        </p>
+                                    )}
+
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div className="bg-slate-50 p-4 sm:p-6 flex items-center justify-between border-t border-slate-200">
+                            <button
+                                onClick={prevQuestion}
+                                disabled={currentIndex === 0 || isRecording}
+                                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-slate-600 text-xs sm:text-sm font-medium rounded-lg hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                            >
+                                <i className="fas fa-chevron-left"></i> <span className="hidden sm:inline">Précédent</span>
+                            </button>
+                            
+                            <div className="flex gap-1 sm:gap-1.5">
+                                {questions.map((_, idx) => (
+                                    <div 
+                                        key={idx} 
+                                        className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-colors ${
+                                            idx === currentIndex ? 'bg-indigo-600' : 
+                                            recordings[idx] ? 'bg-indigo-300' : 'bg-slate-300'
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={nextQuestion}
+                                disabled={currentIndex === questions.length - 1 || isRecording}
+                                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-slate-600 text-xs sm:text-sm font-medium rounded-lg hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                            >
+                                <span className="hidden sm:inline">Suivant</span> <i className="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
